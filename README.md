@@ -1,0 +1,1 @@
+# Automatic-Medicine-Prescription-using-BART-integrated-with-flask-and-reactjs
