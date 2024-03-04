@@ -219,22 +219,63 @@ def process_chat():
     word_tokens = word_tokenize(disease_input)
     filtered_sentence = [w for w in word_tokens if not w.lower() in stop_words]
     filtered_sentence = []
+    chk_dis=",".join(cols).split(",")
     for w in word_tokens:
         if w not in stop_words:
             filtered_sentence.append(w)
     with open('C:/Users/vishn/finalyear/project/project/src/Datasets/keywords1.txt', 'r') as file:
           text_file_contents = file.read()
     words_in_text_file = [word for word in filtered_sentence if word in text_file_contents]
+    for word in words_in_text_file:
+          print(word)
     input_symptom=words_in_text_file[0]
-    # Call the existing Python chat function and return the result
+    conf,cnf_dis=check_pattern(chk_dis,input_symptom)
+    if conf==1:
+        print("searches related to input: ")
+        sys=[]
+        for num,it in enumerate(cnf_dis):
+            sys.append(it)
+        result={'result': sys}
+        """if num!=0:
+            print(f"Select the one you meant (0 - {num}):  ", end="")
+            conf_inp = int(input(""))
+        else:
+            conf_inp=0"""
+        #input_symptom=cnf_dis[conf_inp]
+    return jsonify(result)
+@app.route('/sym', methods=['POST'])
+@cross_origin()
+def sym():
+    dat=request.get_json()
+    selected_index = dat['selected_index']
+    print(selected_index)
+    disease_input=dat['symptoms']
+    stop_words = set(stopwords.words('english'))
+    word_tokens = word_tokenize(disease_input)
+    filtered_sentence = [w for w in word_tokens if not w.lower() in stop_words]
+    filtered_sentence = []
+    chk_dis=",".join(cols).split(",")
+    for w in word_tokens:
+        if w not in stop_words:
+            filtered_sentence.append(w)
+    with open('C:/Users/vishn/finalyear/project/project/src/Datasets/keywords1.txt', 'r') as file:
+          text_file_contents = file.read()
+    words_in_text_file = [word for word in filtered_sentence if word in text_file_contents]
+    for word in words_in_text_file:
+          print(word)
+    input_symptom=words_in_text_file[0]
+    conf,cnf_dis=check_pattern(chk_dis,input_symptom)
+    input_symptom=cnf_dis[selected_index]
     try:
         symptoms_given = find_connected_symptoms(G, input_symptom)
         symptoms_given = [symptom for symptom in symptoms_given if symptom not in diseases_in_column]
-        result = {'result': symptoms_given}
+        sss=[]
+        for i in symptoms_given:
+            sss.append(i)
     except Exception as e:
         result = {'error': str(e)}
 
-    return jsonify(result)
+    return jsonify({'symp':sss})
 @app.route('/predict', methods=['POST'])
 @cross_origin()
 def predict():
