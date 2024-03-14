@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css'; 
 import MailCard from './MailCard';
@@ -18,6 +18,45 @@ const App = () => {
   const [weight, setweight] = useState('');
   const [height, setheight] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef(null);
+  const [inputType, setInputType] = useState(''); 
+  const handleInputType = (type) => {
+    setInputType(type);
+    setShowInputForm(true);
+  };
+
+  const renderInputTypeSelection = () => {
+    return (
+      <div>
+        <label>Choose Input Type:</label>
+        <button onClick={() => handleInputType('audio')}>Audio Input</button>
+        <button onClick={() => handleInputType('text')}>Keyboard Input</button>
+      </div>
+    );
+  };
+  const startAudioInput = () => {
+    const recognition = new window.webkitSpeechRecognition();
+    recognitionRef.current = recognition;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setTranscript(transcript);
+    };
+
+    recognition.onend = () => {
+      console.log('Speech recognition ended.');
+    };
+    const recordingTime = 10000;
+  setTimeout(() => {
+    recognition.stop();
+    console.log('Speech recognition stopped.');
+    window.alert('Recording has stopped!');
+  }, recordingTime);
+    recognition.start();
+  };
+
+
   useEffect(() => {
     const rotateATD = async () => {
       await new Promise(resolve => setTimeout(resolve, 10000));
@@ -75,7 +114,9 @@ const App = () => {
       console.error('Error:', error);
     }
   };
-
+  const handleSetSymptomButtonClick = () => {
+    setSymptom(transcript); 
+  };
   const generateMedicine = async () => {
     try {
       const response = await axios.post('http://localhost:5000/medicine', {
@@ -90,7 +131,10 @@ const App = () => {
   return (
     <div className='bb'>
     <div className="container">
-      {showInputForm ? (
+    {inputType === '' ? (
+          renderInputTypeSelection()
+        ) : (
+          showInputForm ? (
         <div className="chatbox">
           <h1>ATD</h1>
           <div>
@@ -114,12 +158,22 @@ const App = () => {
             <input type="number" value={height} onChange={(e) => setheight(e.target.value)} />
           </div>
           <div>
-            <label>Enter Symptom:</label>
-            <input type="text" value={symptom} onChange={(e) => setSymptom(e.target.value)} />
-          </div>
+                {inputType === 'audio' ? (
+                  <div>
+                    <button onClick={startAudioInput}>Start Audio Input</button>
+                    <label>--{transcript}--</label>
+                    <button onClick={handleSetSymptomButtonClick}>Set Symptom</button>
+                  </div>
+                ) : (
+                  <div>
+                    <label>Enter Symptom:</label>
+                    <input type="text" value={symptom} onChange={(e) => setSymptom(e.target.value)} />
+                  </div>
+                )}
+              </div>
           <button onClick={handleChat}>Chat</button>
           <div className="result-container">
-            <label>Select Symptom:</label>
+            <label>Select One:</label>
             {result.map((item, index) => (
               <div key={index} className="checkbox-item">
                 <input
@@ -156,13 +210,13 @@ const App = () => {
             <button onClick={generateMedicine}>Generate my medicine</button>
           </div>
           <div className="medicine-container">
-            <MailCard title="Prescription" nameofpatient={name} ageofpatient={age} diseaseofpatient={disease} medicineforpatient={med} heightofpatient={height} weightofpatient={weight} />
+            <MailCard title="Prescription" nameofpatient={name} ageofpatient={age}  medicineforpatient={med} heightofpatient={height} weightofpatient={weight} />
           </div>
         </div>
         </div>
       ) : (
         <img className="blinking-image" src={blinkingImage} alt="Blinking" />
-      )}
+      ))}
       <div className="chat-bubble">ATD</div>
     </div>
     </div>

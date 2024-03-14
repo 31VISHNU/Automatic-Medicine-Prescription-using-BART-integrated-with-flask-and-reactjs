@@ -1,11 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS  # To handle Cross-Origin Resource Sharing
 import pandas as pd
+import json
 # Import other necessary libraries and functions
 from flask_cors import cross_origin
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
-
+import re
 import transformers
 from datasets import load_dataset, load_metric, load_from_disk
 import numpy as np
@@ -34,8 +35,9 @@ import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
 
-file_path = 'C:/Users/vishn/finalyear/project/project/src/Datasets/dataset1.csv'
+file_path = 'C:/Users/vishn/finalyear/project/project/src/Datasets/dataset.csv'
 df = pd.read_csv(file_path)
+df = df.drop(columns=['Unnamed: 0'])
 G = nx.Graph()
 
 for _, row in df.iterrows():
@@ -215,6 +217,7 @@ def process_chat():
     name = data['name']
     age = data['age']
     disease_input=data['symptoms']
+    print("-------------------------",disease_input)
     stop_words = set(stopwords.words('english'))
     word_tokens = word_tokenize(disease_input)
     filtered_sentence = [w for w in word_tokens if not w.lower() in stop_words]
@@ -269,9 +272,11 @@ def sym():
     try:
         symptoms_given = find_connected_symptoms(G, input_symptom)
         symptoms_given = [symptom for symptom in symptoms_given if symptom not in diseases_in_column]
+        print(symptoms_given)
         sss=[]
         for i in symptoms_given:
             sss.append(i)
+        print(sss)
     except Exception as e:
         result = {'error': str(e)}
 
@@ -284,6 +289,8 @@ def predict():
     num_days=da['day']
     second_prediction=sec_predict(symptoms_exp)
     a=second_prediction[0]
+    with open('symptoms_exp.json', 'w') as f:
+        json.dump(symptoms_exp, f)
     #print("---------------------Report Generated from ATD-----------------------")
     return jsonify({'disease':a})
 import torch
@@ -293,6 +300,10 @@ from transformers import BartForConditionalGeneration, BartTokenizer
 def medicine():
     dd=request.get_json()
     input_text=dd['dis']
+    with open('symptoms_exp.json', 'r') as f:
+        symptoms_exp = json.load(f)
+    symptoms_exp.append(input_text)
+    print(symptoms_exp)
     model_name = "C:/Users/vishn/Downloads/fine_tuned_bart_best_10epoch-20240208T140224Z-001/fine_tuned_bart_best_10epoch"
     model = BartForConditionalGeneration.from_pretrained(model_name)
     tokenizer = BartTokenizer.from_pretrained(model_name)
@@ -300,7 +311,11 @@ def medicine():
     with torch.no_grad():
         outputs = model.generate(input_ids)
     predicted_medicine = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-    return jsonify({'med':predicted_medicine})
+    words = re.findall(r'\b\w+\b', predicted_medicine[0])
+    filtered_words = [word for word in words if len(word) > 1]
+    for word in filtered_words:
+        print(word)
+    return jsonify({'med':filtered_words})
 
 if __name__ == '__main__':
     app.run(port=5000)  
