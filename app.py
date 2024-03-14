@@ -5,9 +5,12 @@ import json
 # Import other necessary libraries and functions
 from flask_cors import cross_origin
 app = Flask(__name__)
+from sklearn.preprocessing import LabelEncoder
 CORS(app)  # Enable CORS for all routes
 import re
 import transformers
+import torch
+from transformers import BertTokenizer, BertForSequenceClassification
 from datasets import load_dataset, load_metric, load_from_disk
 import numpy as np
 import nltk
@@ -34,7 +37,7 @@ nltk.download('punkt')
 import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
-
+label_encoder = LabelEncoder()
 file_path = 'C:/Users/vishn/finalyear/project/project/src/Datasets/dataset.csv'
 df = pd.read_csv(file_path)
 df = df.drop(columns=['Unnamed: 0'])
@@ -287,8 +290,30 @@ def predict():
     da=request.get_json()
     symptoms_exp=da['item']
     num_days=da['day']
-    second_prediction=sec_predict(symptoms_exp)
-    a=second_prediction[0]
+    df1 = pd.read_csv("C:/Users/vishn/finalyear/project/project/src/Datasets/dataset1.csv")
+    disease_list = df1['Disease'].tolist()
+    label_encoder.fit(disease_list)
+    model_path = 'C:/Users/vishn/Downloads/clinical_bert_model-20240314T063713Z-001/clinical_bert_model'
+    tokenizer = BertTokenizer.from_pretrained(model_path)
+    model = BertForSequenceClassification.from_pretrained(model_path)
+
+    model.eval()
+
+    input_text = ' '.join(symptoms_exp)
+
+    input_ids = tokenizer(input_text, padding=True, truncation=True, return_tensors="pt")["input_ids"]
+
+    with torch.no_grad():
+        outputs = model(input_ids)
+
+    logits = outputs.logits
+
+    probabilities = torch.softmax(logits, dim=1)
+    predicted_class = torch.argmax(probabilities, dim=1).item()
+    predicted_label = label_encoder.classes_[predicted_class]
+
+    print(f"Predicted class: {predicted_label}")
+    a=predicted_label
     with open('symptoms_exp.json', 'w') as f:
         json.dump(symptoms_exp, f)
     #print("---------------------Report Generated from ATD-----------------------")
@@ -300,14 +325,14 @@ from transformers import BartForConditionalGeneration, BartTokenizer
 def medicine():
     dd=request.get_json()
     input_text=dd['dis']
-    with open('symptoms_exp.json', 'r') as f:
-        symptoms_exp = json.load(f)
-    symptoms_exp.append(input_text)
-    print(symptoms_exp)
+    df = pd.read_csv("C:/Users/vishn/finalyear/project/project/src/Datasets/datasetwithdescription_new.csv", encoding="ISO-8859-1")
+    symptom_description = dict(zip(df["Symptom"], df["Description"]))
+    description = symptom_description.get(input_text, "Description not found")
+    print(description)
     model_name = "C:/Users/vishn/Downloads/fine_tuned_bart_best_10epoch-20240208T140224Z-001/fine_tuned_bart_best_10epoch"
     model = BartForConditionalGeneration.from_pretrained(model_name)
     tokenizer = BartTokenizer.from_pretrained(model_name)
-    input_ids = tokenizer(input_text, return_tensors="pt")["input_ids"]
+    input_ids = tokenizer(description, return_tensors="pt")["input_ids"]
     with torch.no_grad():
         outputs = model.generate(input_ids)
     predicted_medicine = tokenizer.batch_decode(outputs, skip_special_tokens=True)
